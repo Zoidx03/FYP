@@ -1,67 +1,75 @@
-import cv2 as cv
+import cv2
 import numpy as np
-from functions import centerHandler
 
-MIN_WIDTH_RECT = 80
-MIN_HEIGHT_RECT = 80
-OFFSET = 6  # Allowable error between pixels
+#starting webcamera
 
-# Web Camera:
-cap = cv.VideoCapture('./video/video.mp4')
+cap = cv2.VideoCapture('video.mp4')
 
-# Line position:
-linePos = 550
+#counter Line Position 
 
-# Initialize Subtractor:
-algo = cv.createBackgroundSubtractorMOG2(detectShadows=True)
+count_line_position = 550
+min_width_rec = 80
+min_height_rec = 80
+
+#initializing Algorithm 
+algo = cv2.bgsegm.createBackgroundSubtractorMOG()
+
+def center_handle(x,y,w,h):
+    x1= int(w/2)
+    y1= int(h/2)
+    cx = x+x1
+    cy = y+y1      
+    return cx,cy
+
 detect = []
-count = 0
+offset = 6 #allowable error between pixel
+counter = 0
 
 while True:
-    ret, frame1 = cap.read()
-    bgr2gray = cv.cvtColor(frame1, cv.COLOR_BGR2GRAY)
-    gaussBlur = cv.GaussianBlur(bgr2gray, (3, 3), 5)
+    ret,frame1= cap.read()
+    gray = cv2.cvtColor(frame1,cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray,(3,3),5)
+    
+    #applying on the video
+    
+    img_subs = algo.apply(blur)
+    dilate = cv2.dilate(img_subs,np.ones((5,5)))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
+    dilatada = cv2.morphologyEx(dilate,cv2.MORPH_CLOSE, kernel)
+    dilatada = cv2.morphologyEx(dilatada,cv2.MORPH_CLOSE, kernel)
+    counterbox,h =cv2.findContours(dilatada, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.line(frame1, (25,count_line_position), (1200, count_line_position), (255, 127, 0), 3)
 
-    # Applying on each frame:
-    imgSub = algo.apply(gaussBlur)
-    dilate = cv.dilate(imgSub, np.ones((5, 5), np.uint8))
-    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
-    dilateMorph = cv.morphologyEx(dilate, cv.MORPH_CLOSE, kernel)
-    dilateMorph = cv.morphologyEx(dilateMorph, cv.MORPH_CLOSE, kernel)
-    counter, h = cv.findContours(dilateMorph, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-    cv.line(frame1, (25, linePos), (1250, linePos), (0, 0, 255), 2)  # Drawing the line
 
-    new_detect = []  # Create a new list to store updated detections
 
-    for (i, c) in enumerate(counter):
-        (x, y, w, h) = cv.boundingRect(c)
-        validate = (w >= MIN_WIDTH_RECT) and (h >= MIN_HEIGHT_RECT)
-        if not validate:
+    for (i,c) in enumerate(counterbox):
+        (x,y,w,h) = cv2.boundingRect(c) 
+        validate_counter = (w>=min_width_rec) and (h>=min_height_rec)
+        if not validate_counter:
             continue
+        
+        cv2.rectangle(frame1,(x,y),(x+w,y+h),(0,255,0))
+        cv2.putText(frame1, "Vehicle : "+ str(counter),(x, y-20), cv2.FONT_HERSHEY_TRIPLEX,1,(255,244,00),2)
 
-        cv.rectangle(frame1, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Drawing the rectangle
 
-        center = centerHandler(x, y, w, h)
+ 
+        center = center_handle(x,y,w,h)
         detect.append(center)
-        cv.circle(frame1, center, 4, (0, 0, 255), -1)
+        cv2.circle(frame1,center,4,(0,0,255),-1)
 
-        for (x, y) in detect:
-            if y < linePos + OFFSET and y > linePos - OFFSET:
-                count += 1
-
-        if y < linePos + OFFSET and y > linePos - OFFSET:
-            cv.line(frame1, (25, linePos), (1250, linePos), (255, 127, 0), 2)  # Redrawing the line after it gets crossed by a vehicle
-        else:
-            new_detect.append(center)  # Add the center to the new_detect list if the line is not crossed
-
-    detect = new_detect  # Update the detect list with the new_detect list
-
-    cv.putText(frame1, f"Vehicle Counter = {count}", (450, 70), cv.FONT_HERSHEY_PLAIN, 2, (0, 0, 255), 3)
-
-    # cv.imshow('Detecter', dilateMorph)
-    cv.imshow('Video', frame1)
-    if cv.waitKey(1) == 13:  # 13 means Enter key
+        for(x,y) in detect:
+            if y<(count_line_position + offset) and y>(count_line_position - offset):
+                counter+=1
+                cv2.line(frame1, (25,count_line_position), (1200, count_line_position), (170, 255, 0), 3)
+                detect.remove((x,y))
+                print("Vehicle Counter: " +str(counter) )
+    
+    cv2.putText(frame1, "Vehicle Counter : "+ str(counter),(450,70), cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,1,(0,0,255),2)
+ 
+    cv2.imshow('Video Orignal',frame1)
+    if cv2.waitKey(1) == 13:
         break
 
-cv.destroyAllWindows()
+cv2.destroyAllWindows()
 cap.release()
+
