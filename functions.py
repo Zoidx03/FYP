@@ -22,3 +22,15 @@ def rescale(frame, fixed_width, fixed_height):
     sharpened_frame = cv2.filter2D(frame, -1, sharpening_kernel)
 
     return cv2.resize(sharpened_frame, dimension, interpolation=INTER_AREA)
+
+def check_wide_lens(frame, width, height, threshold):
+    camera_matrix = np.array([[width, 0, width // 2], [0, height, height // 2], [0, 0, 1]], dtype=np.float64)
+    distortion = np.zeros((4, 1), dtype=np.float64)
+
+    undistorted_frame = cv2.undistort(frame, camera_matrix, distortion)
+
+    # Compare the original frame to the distorted frame:
+    mean_squared_error = np.mean((frame - undistorted_frame) ** 2)
+    wide_lens = mean_squared_error > threshold
+    return undistorted_frame if wide_lens else frame
+    

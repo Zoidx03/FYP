@@ -26,11 +26,13 @@ while True:
         frame1 = rescale(frame1, FIXED_VIDEO_WIDTH, FIXED_VIDEO_HEIGHT)
         COUNT_LINE_POSITION = 720 // 2
 
+    #checking if the video has a wide lens being used, if it does, we fix the distortion.
+    frame1 = check_wide_lens(frame1, FIXED_VIDEO_WIDTH, FIXED_VIDEO_HEIGHT, THRESHOLD)
+
     gray = cv2.cvtColor(frame1,cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray,(3,3),5)
     
     #applying on the video
-    
     img_subs = algo.apply(blur)
     dilate = cv2.dilate(img_subs,np.ones((5,5)))
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
